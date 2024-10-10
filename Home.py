@@ -36,7 +36,7 @@ def main():
 
 @st.cache_resource
 def load_detector(*, device: str) -> Predictor:
-    """
+    '''
     This function loads a pre-trained Vietnamese OCR detector for text extraction.
     It uses the provided device (either CPU or GPU) for inference.
 
@@ -45,13 +45,13 @@ def load_detector(*, device: str) -> Predictor:
 
     Returns:
     Predictor: An instance of the Vietnamese OCR detector, pre-trained and ready for text extraction.
-    """
+    '''
     return load_vietocr_detector(device=device)
 
 
 @st.cache_data
 def extract_text(_detector: Predictor, image_file) -> str:
-    """
+    '''
     This function extracts text from an input image using a pre-trained
     Vietnamese OCR detector.
 
@@ -63,14 +63,25 @@ def extract_text(_detector: Predictor, image_file) -> str:
 
     Returns:
         str: The extracted text from the input image.
-    """
+    '''
     with Image.open(image_file) as image:
        return _detector.predict(image)
 
 
 def copy_to_clipboard(text: str) -> None:
+    '''
+    This function copies the provided text to the clipboard.
+    It uses the 'clipboard' module from the pandas.io library to perform the copy operation.
+    Additionally, it uses the 'st' module from the Streamlit library to display a success message.
+
+    Parameters:
+    text (str): The text to be copied to the clipboard.
+
+    Returns:
+    None: This function does not return any value.
+    '''
     clipboard.copy(text)
-    st.info('Copied text to clipboard.')
+    st.success('Copied text to clipboard.')
 
 
 if __name__ == '__main__':
