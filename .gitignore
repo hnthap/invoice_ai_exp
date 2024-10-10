@@ -1,2 +1,8 @@
 # Virtual environment directory
-.venv
+.venv/
+
+# Cache
+**/__pycache__/
+
+# Private assets
+assets/secret/
