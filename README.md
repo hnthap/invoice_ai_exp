@@ -4,9 +4,7 @@
 
 ***Please carefully read this README before doing anything. Thanks.***
 
-I used Python 3.10.11 and installed the packages as described in the
-`requirements.txt` file. Any other version of Python or the packages
-are untested.
+I used Python 3.10.11 and installed the packages as described in the `requirements.txt` file. Any other version of Python or the packages are untested.
 
 Scripts:
 
@@ -19,10 +17,12 @@ Experiment notebooks:
 
 Before running any code, make sure you have these files downloaded:
 
-| Download URL | Save to path |
-| ------------ | ------------ |
-| [Google Drive](https://drive.google.com/file/d/1Jk4eGD7crsqCCg9C9VjCLkMN3ze8kutZ/view) | weights/craft_mlt_25k.pth |
-| [Google Drive](https://drive.google.com/file/d/1XSaFwBkOaFOdtk4Ane3DFyJGPRw6v5bO/view) | weights/craft_refiner_CTW1500.pth |
+| Download URL | Save to path | Note |
+| ------------ | ------------ | ---- |
+| [Google Drive](https://drive.google.com/file/d/1Jk4eGD7crsqCCg9C9VjCLkMN3ze8kutZ/view) | weights/craft_mlt_25k.pth | |
+| [Google Drive](https://drive.google.com/file/d/1XSaFwBkOaFOdtk4Ane3DFyJGPRw6v5bO/view) | weights/craft_refiner_CTW1500.pth | |
+| [Google Drive](https://drive.google.com/file/d/12SB-6QG00ZLdQZxUL-7JKzyYPSsQLelg/view) | data/mc_ocr_warmup_500images.zip | [Do this before using](https://drive.google.com/file/d/1yKVGqYZ3JRp6nIaPQE1tL8rMgeNKw9NJ/view) |
+| [Google Drive](https://drive.google.com/file/d/1V56pnmv-Xuq4bQ0JyobWtm0yL1Szxi7B/view) | data/mcocr2021_public_train_test_data.zip | [Do this before using](https://drive.google.com/file/d/1yKVGqYZ3JRp6nIaPQE1tL8rMgeNKw9NJ/view) |
 
 ## What is going on?
 

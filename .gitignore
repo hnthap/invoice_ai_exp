@@ -6,9 +6,13 @@
 
 # Private assets
 assets/secret/
+secret.ipynb
 
 # Output files
 out/
 
 # Pretrained weights
 weights/
+
+# Data
+data/
