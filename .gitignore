@@ -1,2 +1,14 @@
 # Virtual environment directory
-.venv
+.venv/
+
+# Cache
+**/__pycache__/
+
+# Private assets
+assets/secret/
+
+# Output files
+out/
+
+# Pretrained weights
+weights/
