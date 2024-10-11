@@ -6,3 +6,9 @@
 
 # Private assets
 assets/secret/
+
+# Output files
+out/
+
+# Pretrained weights
+weights/
