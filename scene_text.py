@@ -12,6 +12,7 @@ from clovaai_craft.craft import CRAFT
 from clovaai_craft import craft_utils
 from clovaai_craft import imgproc
 from clovaai_craft.refine_net import RefineNet
+from image_utils import rotate_image, get_vector_angle
 from vietocr_api import load_vietocr_detector
 
 
@@ -158,6 +159,30 @@ def detect_text(model, image: np.ndarray, *, device, refine_net = None,
     return boxes
 
 
+def detect_text2(model, image: np.ndarray, *, device, refine_net = None,
+                 canvas_size = 1280, mag_ratio = 1.5, text_threshold = 0.7,
+                 low_text = 0.4, link_threshold = 0.4, poly = False,
+                 rotate_if_less_than: int | None = None
+                 ) -> tuple[np.ndarray, list[np.ndarray]]:
+    boxes = detect_text(model, image, device=device, refine_net=refine_net,
+                        canvas_size=canvas_size, mag_ratio=mag_ratio,
+                        text_threshold=text_threshold, low_text=low_text,
+                        link_threshold=link_threshold, poly=poly)
+    if len(boxes) != 0 and (rotate_if_less_than is None or 
+                            len(boxes) < rotate_if_less_than):
+        vector = np.average(boxes[:, 1] - boxes[:, 0], axis=0)
+        angle = get_vector_angle(vector)
+        if abs(angle) > 0.5:
+            image = rotate_image(image, angle)
+            boxes = detect_text(
+                model, image, device=device, refine_net=refine_net,
+                canvas_size=canvas_size, mag_ratio=mag_ratio,
+                text_threshold=text_threshold, low_text=low_text,
+                link_threshold=link_threshold, poly=poly,
+            )
+    return image, boxes
+
+
 def crop_boxes(image: np.ndarray, boxes):
     crops = []
     for box in boxes:
@@ -168,8 +193,6 @@ def crop_boxes(image: np.ndarray, boxes):
         y1, y2 = min(y_values), max(y_values)
         assert x1 + 1 < x2, '{}, {}'.format(x1, x2)
         assert y1 + 1 < y2, '{}, {}'.format(y1, y2)
-        
-        # I still don't understand why x and y are flipped 🤔
         crops.append(image[max(y1, 0):y2 + 1, max(x1, 0):x2 + 1].copy())
     return crops
 

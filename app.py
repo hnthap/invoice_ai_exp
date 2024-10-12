@@ -13,7 +13,8 @@ from vietocr.tool.predictor import Predictor
 from clovaai_craft.craft import CRAFT
 from clovaai_craft import imgproc
 from clovaai_craft.refine_net import RefineNet
-from scene_text import load_weights, detect_text, crop_boxes, visualize_boxes
+from scene_text import (load_weights, detect_text, detect_text2, crop_boxes,
+                        visualize_boxes)
 from vietocr_api import load_vietocr_detector
 
 
@@ -23,36 +24,33 @@ def main():
 
     st.set_page_config(title, icon, 'wide')
 
-    device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
-    if device == 'cpu':
-        st.warning('WARNING: No GPU detected. Using CPU for OCR. '
-                   'It may take a long time.')
-        
+    device = get_device()    
     net, refine_net = load_craft(device=device)
     detector = load_detector(device=device)
 
-    [left, right] = st.columns([1, 1.2], gap='medium')
+    [left, right] = st.columns([3, 5], gap='medium')
 
     with right:
+        # enables_sharpen = st.checkbox('Sharpen image before inferencing',
+        #                               value=False)
+        enables_rotate = st.checkbox(
+            'Enable rotating for better results, but it is as twice as '
+            'slower', value=False,
+        )
+    with left:
         image = upload_image()
-        boxes = detect_text(net, image, device=device, refine_net=refine_net)
+        # if enables_sharpen:
+        #     image = sharpen_image(image)
 
-    with st.empty():
-        st.toast('Detected {} boxes.'.format(len(boxes)), icon='📦')
+    image, boxes = detect_text_wrapper(
+        net, refine_net, image, device, enables_rotate)
+    toast_box_count(len(boxes))
 
     with left:
-        st.image(visualize_boxes(image, boxes), use_column_width=True)
+        visualize_image_with_boxes(image, boxes)
     
     with right:
-        pieces = crop_boxes(np.int32(image), boxes)
-        piece_objs = [Image.fromarray(np.uint8(piece), 'RGB') for piece in pieces]
-        texts = detector.predict_batch(piece_objs)
-        df = pd.DataFrame({ 
-            'id': range(1, len(pieces) + 1),
-            'image': list(map(pil_image_to_base36, piece_objs)),
-            'text': texts,
-        })
-        df.set_index('id')
+        df = extract_texts(detector, image, boxes)
         st.dataframe(
             df,
             column_config={
@@ -66,7 +64,7 @@ def main():
 
 
 def upload_image():
-    supported_file_suffixes = ['jpg', 'png', 'jpeg', 'gif', 'webm']
+    supported_file_suffixes = ['jpg', 'png', 'jpeg']
     default_image_file = 'assets/sample-003.jpg'
 
     image_file = st.file_uploader('Upload an image', supported_file_suffixes)
@@ -94,35 +92,32 @@ def load_detector(*, device: str) -> Predictor:
 
 @st.cache_resource
 def load_craft(*, device=None) -> CRAFT:
-    
+    # Load CRAFT
     net = CRAFT().to(device) # net = nn.DataParallel(net)
     cudnn.benchmark = False
     net = load_weights(net, 'weights/craft_mlt_25k.pth', device=device)
-
+    # Load refine net
     refine_net = RefineNet().to(device)
     refine_net = load_weights(
         refine_net, 'weights/craft_refiner_CTW1500.pth', device=device)
-    
     return net, refine_net
 
 
 @st.cache_data
-def extract_text(_detector: Predictor, image_file) -> str:
-    '''
-    This function extracts text from an input image using a pre-trained
-    Vietnamese OCR detector.
-
-    Args:
-        _detector (Predictor): An instance of the Vietnamese OCR detector. 
-            It should be pre-trained and loaded.
-        image (Image.Image): The input image from which text needs to be 
-            extracted.
-
-    Returns:
-        str: The extracted text from the input image.
-    '''
-    with Image.open(image_file) as image:
-       return _detector.predict(image)
+def extract_texts(_detector: Predictor, image: np.ndarray,
+                  boxes: list[np.ndarray]) -> str:
+    pieces = crop_boxes(np.int32(image), boxes)
+    piece_objs = [Image.fromarray(np.uint8(piece), 'RGB') 
+                    for piece in pieces]
+    texts = _detector.predict_batch(piece_objs)
+    df = pd.DataFrame({ 
+        'ID': list(map(lambda v: '{}/{}'.format(v, len(pieces)),
+                        range(1, len(pieces) + 1))),
+        'image': list(map(pil_image_to_base36, piece_objs)),
+        'text': texts,
+    })
+    df.set_index('ID', inplace=True)
+    return df
     
 
 @st.cache_data
@@ -138,6 +133,23 @@ def pil_image_to_base36(image: Image.Image) -> str:
     return data_url
 
 
+@st.cache_data
+def detect_text_wrapper(_net, _refine_net, image, device, enables_rotate):
+    if enables_rotate:
+        new_image, boxes = detect_text2(_net, image, device=device,
+                                        refine_net=_refine_net)
+        if len(boxes) > 0: # If detected some texts
+            image = new_image
+    else:
+        boxes = detect_text(_net, image, device=device, refine_net=_refine_net)
+    return image, boxes
+
+
+# @st.cache_data
+# def sharpen_image_wrapper(image: np.ndarray) -> np.ndarray:
+#     return sharpen_image(image)
+
+
 def copy_to_clipboard(text: str):
     '''
     This function copies the provided text to the clipboard.
@@ -149,6 +161,35 @@ def copy_to_clipboard(text: str):
     '''
     clipboard.copy(text)
     st.success('Copied text to clipboard.')
+
+
+def get_device() -> str:
+    device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
+    if device == 'cpu':
+        st.warning('WARNING: No GPU detected. Using CPU for OCR. '
+                   'It may take a long time.')
+    return device
+
+
+def visualize_image_with_boxes(image: np.ndarray, boxes: list[np.ndarray]):
+    vis = visualize_boxes(image, boxes)
+    st.image(vis, use_column_width=True)
+
+
+def toast_box_count(box_count: int) -> None:
+    if box_count == 0:
+        toast = 'No text detected.'
+    elif box_count == 1:
+        toast = 'Detected 1 box.'
+    else:
+        toast = 'Detected {} boxes.'.format(box_count)
+    if box_count == 0:
+        icon = '❄️'
+    elif box_count <= 30:
+        icon = '📦'
+    else:
+        icon = '💣'
+    st.toast(toast, icon=icon)
 
 
 if __name__ == '__main__':
