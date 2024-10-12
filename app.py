@@ -1,7 +1,8 @@
 import base64
-from io import BytesIO
+from io import BytesIO, StringIO
 
 from PIL import Image
+import cv2
 import numpy as np
 import pandas as pd
 from pandas.io import clipboard
@@ -18,61 +19,80 @@ from scene_text import (load_weights, detect_text, detect_text2, crop_boxes,
 from vietocr_api import load_vietocr_detector
 
 
+_DEFAULT_IMAGE_FILE = 'assets/sample-003.jpg'
+
+
 def main():
     title = 'Insert Title Here'
     icon = '🖼️'
 
     st.set_page_config(title, icon, 'wide')
-
     device = get_device()    
     net, refine_net = load_craft(device=device)
     detector = load_detector(device=device)
-
     [left, right] = st.columns([3, 5], gap='medium')
 
+    with left:
+        image = input_image()
     with right:
-        # enables_sharpen = st.checkbox('Sharpen image before inferencing',
-        #                               value=False)
         enables_rotate = st.checkbox(
             'Enable rotating for better results, but it is as twice as '
             'slower', value=False,
         )
     with left:
-        image = upload_image()
-        # if enables_sharpen:
-        #     image = sharpen_image(image)
-
-    image, boxes = detect_text_wrapper(
-        net, refine_net, image, device, enables_rotate)
-    toast_box_count(len(boxes))
-
-    with left:
+        image, boxes = detect_text_wrapper(
+            net, refine_net, image, device, enables_rotate)
+        toast_box_count(len(boxes))
         visualize_image_with_boxes(image, boxes)
-    
     with right:
         df = extract_texts(detector, image, boxes)
-        st.dataframe(
-            df,
-            column_config={
-                'image': st.column_config.ImageColumn('Image', width='medium'),
-                'text': st.column_config.TextColumn('Text', width='medium'),
-            },
-            use_container_width=True,
-            hide_index=False,
-            column_order=('image', 'text'),
-        )
+        show_result(df)
+        if st.button('Export CSV to Clipboard'):
+            with StringIO() as buffer:
+                df.to_csv(buffer, index=True)
+                clipboard.copy(buffer.getvalue())
+                st.toast('CSV exported successfully to clipboard!', icon='📋')
+
+
+def input_image():
+    input_option = st.radio('Input options', ['Upload', 'Webcam'],
+                            horizontal=True, label_visibility='hidden')
+    if input_option == 'Upload':
+        image = upload_image()
+    else:
+        assert input_option == 'Webcam'
+        image = take_webcam_shot()
+    return image
+
+
+def show_result(df):
+    st.dataframe(
+        df,
+        height=450,
+        column_config={
+            'image': st.column_config.ImageColumn('Image', width='medium'),
+            'text': st.column_config.TextColumn('Text', width='medium'),
+        },
+        use_container_width=True,
+        hide_index=False,
+        column_order=('image', 'text'),
+    )
 
 
 def upload_image():
     supported_file_suffixes = ['jpg', 'png', 'jpeg']
-    default_image_file = 'assets/sample-003.jpg'
-
-    image_file = st.file_uploader('Upload an image', supported_file_suffixes)
-    if image_file is None:
-        image_file = default_image_file
-    image = imgproc.loadImage(image_file)
+    file = st.file_uploader('Upload an image', supported_file_suffixes)
+    image = file.getvalue() if file else _DEFAULT_IMAGE_FILE
+    image = imgproc.loadImage(image)
     return image
                     
+
+def take_webcam_shot():
+    file = st.camera_input('Take a picture')
+    image = file.getvalue() if file else _DEFAULT_IMAGE_FILE
+    image = imgproc.loadImage(image)
+    return image
+
 
 @st.cache_resource
 def load_detector(*, device: str) -> Predictor:
@@ -143,11 +163,6 @@ def detect_text_wrapper(_net, _refine_net, image, device, enables_rotate):
     else:
         boxes = detect_text(_net, image, device=device, refine_net=_refine_net)
     return image, boxes
-
-
-# @st.cache_data
-# def sharpen_image_wrapper(image: np.ndarray) -> np.ndarray:
-#     return sharpen_image(image)
 
 
 def copy_to_clipboard(text: str):

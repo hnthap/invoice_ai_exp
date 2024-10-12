@@ -29,12 +29,21 @@ MIT License
 """
 
 # -*- coding: utf-8 -*-
+from pathlib import Path
+
 import numpy as np
 from skimage import io
 import cv2
+import streamlit as st
 
-def loadImage(img_file):
-    img = io.imread(img_file)           # RGB order
+
+def loadImage(img_file: str | Path | bytes):
+    if isinstance(img_file, str) or isinstance(img_file, Path):
+        img = io.imread(img_file)           # RGB order
+    else:
+        img = cv2.imdecode(np.frombuffer(img_file, np.uint8), 
+                             cv2.IMREAD_COLOR)
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
     if img.shape[0] == 2: img = img[0]
     if len(img.shape) == 2 : img = cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
     if img.shape[2] == 4:   img = img[:,:,:3]
