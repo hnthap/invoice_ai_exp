@@ -27,12 +27,6 @@ class ParseqApp:
     models = ['parseq', 'parseq_tiny', 'abinet', 'crnn', 'trba', 'vitstr']
 
     def __init__(self, *, device):
-        '''
-        Initializes the ParseqApp class.
-
-        This class provides methods for performing scene text recognition using
-        various models.
-        '''
         self.device = device
         self._model_cache = {}
         self._preprocess = T.Compose([
@@ -42,22 +36,23 @@ class ParseqApp:
         ])
 
 
-    def _get_model(self, name):
+    def _get_model(self, name, *, verbose=True):
         if name in self._model_cache:
             return self._model_cache[name]
         model = torch.hub.load('baudm/parseq', name, pretrained=True,
-                               trust_repo=True).eval().to(self.device)
+                               trust_repo=True, verbose=verbose)
+        model = model.eval().to(self.device)
         self._model_cache[name] = model
         return model
-    
+
+
     @torch.inference_mode()
     def __call__(self, model_name: str, image: dict | Image.Image, *,
-                 return_confidence=False):
-        if image is None:
-            return '', []
+                 return_confidence=False, verbose=True):
         if isinstance(image, dict):
             image = image['composite']
-        model = self._get_model(model_name)
+        assert isinstance(image, Image.Image)
+        model = self._get_model(model_name, verbose=verbose)
         image = self._preprocess(image.convert('RGB')).unsqueeze(0).to(self.device)
         # Greedy decoding
         pred = model(image).softmax(-1)
@@ -69,3 +64,4 @@ class ParseqApp:
             conf = list(map('{:0.1f}'.format, raw_confidence[0][:max_len].tolist()))
             return label[0], [raw_label[0][:max_len], conf]
         return label[0], None
+    
