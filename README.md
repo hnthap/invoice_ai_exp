@@ -8,21 +8,24 @@ I used Python 3.10.11 and installed the packages as described in the `requiremen
 
 Scripts:
 
+- [PARSeq inference](./parseq.py)
+- [VietOCR inference](./vietocr_api.py)
 - [CRAFT + VietOCR inference](./scene_text.py)
 
 Experiment notebooks:
 
+- [PARSeq: Inference example](./parseq_example.ipynb)
 - [VietOCR: Inference example](./vietocr_example.ipynb)
-- [CRAFT + VietOCR: Inference example](./text_detection_example.ipynb)
+- [CRAFT + VietOCR/PARSeq: Inference example](./craft_vietocr_parseq_example.ipynb)
 
 Before running any code, make sure you have these files downloaded:
 
-| Download URL | Save to path | Note |
-| ------------ | ------------ | ---- |
-| [Google Drive](https://drive.google.com/file/d/1Jk4eGD7crsqCCg9C9VjCLkMN3ze8kutZ/view) | weights/craft_mlt_25k.pth | |
-| [Google Drive](https://drive.google.com/file/d/1XSaFwBkOaFOdtk4Ane3DFyJGPRw6v5bO/view) | weights/craft_refiner_CTW1500.pth | |
-| [Google Drive](https://drive.google.com/file/d/12SB-6QG00ZLdQZxUL-7JKzyYPSsQLelg/view) | data/mc_ocr_warmup_500images.zip | [Do this before using](https://drive.google.com/file/d/1yKVGqYZ3JRp6nIaPQE1tL8rMgeNKw9NJ/view) |
-| [Google Drive](https://drive.google.com/file/d/1V56pnmv-Xuq4bQ0JyobWtm0yL1Szxi7B/view) | data/mcocr2021_public_train_test_data.zip | [Do this before using](https://drive.google.com/file/d/1yKVGqYZ3JRp6nIaPQE1tL8rMgeNKw9NJ/view) |
+| Download URL | Save to path |
+| ------------ | ------------ |
+| [Google Drive](https://drive.google.com/file/d/1Jk4eGD7crsqCCg9C9VjCLkMN3ze8kutZ/view) | weights/craft_mlt_25k.pth |
+| [Google Drive](https://drive.google.com/file/d/1XSaFwBkOaFOdtk4Ane3DFyJGPRw6v5bO/view) | weights/craft_refiner_CTW1500.pth |
+| [MC-OCR Competition 2021](https://aihub.ml/competitions/1) | data/mc_ocr_warmup_500images.zip |
+| [MC-OCR Competition 2021](https://aihub.ml/competitions/1) | data/mcocr2021_public_train_test_data.zip |
 
 ## What is going on?
 
