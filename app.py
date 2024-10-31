@@ -30,7 +30,7 @@ def main():
     device = get_device()    
     net, refine_net = load_craft(device=device)
     detector = load_detector(device=device)
-    [left, right] = st.columns([3, 5], gap='medium')
+    [left, right] = st.columns([2, 5], gap='medium')
 
     with left:
         image = input_image()

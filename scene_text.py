@@ -203,7 +203,8 @@ def visualize_boxes(image: np.ndarray, boxes, *, color=(0, 255, 0)):
         points = [np.int32(point) for point in box]
         points.append(points[0])
         for i in range(0, len(points)):
-            cv2.line(t, points[i - 1], points[i], color, 2)
+            cv2.line(t, points[i - 1], points[i], color,
+                     max(2, min(image.shape[:2]) // 200))
     return t
 
 
