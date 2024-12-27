@@ -3,13 +3,10 @@ print('😳 Import dependencies')
 import base64
 from io import BytesIO
 from typing import Annotated
-
 from PIL import Image
-import cv2
-from fastapi import FastAPI, File, Form, HTTPException, status
+from fastapi import FastAPI, File, HTTPException, UploadFile, status
 from fastapi.middleware.cors import CORSMiddleware
 import numpy as np
-from pydantic import BaseModel
 import torch
 from torch.backends import cudnn
 
@@ -150,7 +147,7 @@ print('🍞 Load VietOCR')
 detector = load_detector(device=device)
 
 print('🍞 Load LayoutLMv3')
-layoutlm3 = load_layoutlm_v3()
+layoutlm3 = load_layoutlm_v3().to(device)
 layoutlm3_processor = load_layoutlm_v3_processor()
 
 print('🍞 Start API')
@@ -171,30 +168,16 @@ async def root():
     return { 'message': 'Hello, this is a Vietnamese scene text API.' }
 
 
-@app.post('/api/process-image', status_code=status.HTTP_200_OK)
-async def process_image(file: Annotated[bytes, File()]):
-    '''
-    Returns {
-        success: true;
-        data: {             # List of items
-            box: number[];  # Bounding box
-            piece: str;     # Piece of image as base-64
-            text: str;      # Text
-        }[];
-    }
-    if success, otherwise, returns {
-        success: false;
-        message: str;       # Error message
-    }
-    '''
+@app.post('/api/process-image')
+async def process_image(image: Annotated[UploadFile, File()]):
     try:
         global net, refine_net, detector, device
-        print('🍜')
-        # original_image = base64_to_image(item.base64)
-        with open('temp.jpg', 'wb') as f: f.write(file)
-        print('🍜🍜')
+        print('🚩 process_image: save the received image to file')
+        with open('temp.jpg', 'wb') as f:
+            f.write(await image.read())
+        print('🚩 process_image: load the image as numpy array')
         image = imgproc.loadImage('temp.jpg')
-        print('🍜🍜🍜')
+        print('🚩 process_image: detect text in image')
         image, boxes = detect_text_wrapper(
             net,
             refine_net=refine_net,
@@ -202,26 +185,26 @@ async def process_image(file: Annotated[bytes, File()]):
             device=device,
             enables_rotate=True,
         )
+        print('🚩 process_image: extract text from image')
         data = extract_texts(detector, image, boxes)
         words = [x['text'] for x in data]
-        print('🍜🍜🍜🍜')
-        # vis_image = visualize_image_with_boxes(image, boxes)
-        # vis_base64 = image_to_base64(vis_image)
-        with Image.open('temp.jpg') as obj:
-            width = obj.width
-            height = obj.height
-        predictions, true_boxes = tag(
-            image, width, height, words, boxes, layoutlm3, layoutlm3_processor)
+        print('🚩 process_image: tag the texts from image')
+        labels, true_boxes = tag(
+            image=image,
+            words=words, 
+            boxes=boxes, 
+            model=layoutlm3, 
+            processor=layoutlm3_processor,
+            device=device,
+        )
+        print('🚩 process_image: send the data to express server')
         return {
             'success': True,
-            'data': data,
-            'predictions': predictions,
-            # 'visualized': vis_base64,
+            'data': [{ **old, 'tag': tag } for old, tag in zip(data, labels)],
         }
     except Exception as e:
-        print('📦 %s' % (str(e)))
+        print('🌋 %s' % (str(e)))
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, 
             detail=str(e),
         )
-        # return { 'success': False, 'message': str(e) }
