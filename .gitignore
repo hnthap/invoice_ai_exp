@@ -10,6 +10,8 @@ secret.ipynb
 
 # Output files
 out/
+temp.jpg
+temp.txt
 
 # Pretrained weights
 weights/

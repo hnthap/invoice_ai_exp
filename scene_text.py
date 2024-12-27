@@ -198,7 +198,7 @@ def crop_boxes(image: np.ndarray, boxes):
 
 
 def visualize_boxes(image: np.ndarray, boxes, *, color=(0, 255, 0)):
-    t = np.int32(image.copy())
+    t = image.copy().astype(np.int32)
     for box in boxes:
         points = [np.int32(point) for point in box]
         points.append(points[0])

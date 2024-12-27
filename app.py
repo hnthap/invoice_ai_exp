@@ -14,8 +14,13 @@ from vietocr.tool.predictor import Predictor
 from clovaai_craft.craft import CRAFT
 from clovaai_craft import imgproc
 from clovaai_craft.refine_net import RefineNet
-from scene_text import (load_weights, detect_text, detect_text2, crop_boxes,
-                        visualize_boxes)
+from scene_text import (
+    load_weights,
+    detect_text,
+    detect_text2,
+    crop_boxes,
+    visualize_boxes,
+)
 from vietocr_api import load_vietocr_detector
 
 

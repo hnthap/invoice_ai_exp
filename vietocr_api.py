@@ -14,7 +14,7 @@ def load_vietocr_detector(*, device: str) -> Predictor:
             configuration.
     '''
     config = Cfg.load_config_from_name('vgg_transformer')
-    config['cnn']['pretrained'] = False
+    config['cnn']['pretrained'] = True
     config['device'] = device
     detector = Predictor(config)
     return detector
