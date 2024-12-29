@@ -1,9 +1,13 @@
 print('😳 Import dependencies')
 
 import base64
+import gc
 from io import BytesIO
 from typing import Annotated
+import warnings
+
 from PIL import Image
+import cv2
 from fastapi import FastAPI, File, HTTPException, UploadFile, status
 from fastapi.middleware.cors import CORSMiddleware
 import numpy as np
@@ -16,16 +20,23 @@ from clovaai_craft.refine_net import RefineNet
 from layoutlm_api import (
     load_layoutlm_v3,
     load_layoutlm_v3_processor,
-    tag
+    tag,
+)
+from phobert import (
+    infer_phobert,
+    load_phobert_model,
+    load_phobert_tokenizer,
 )
 from scene_text import (
     load_weights,
     detect_text,
     detect_text2,
     crop_boxes,
-    visualize_boxes,
 )
 from vietocr_api import load_vietocr_detector, Predictor
+
+
+warnings.filterwarnings('ignore')
 
 
 # def base64_to_image(raw: str) -> np.ndarray:
@@ -82,7 +93,7 @@ def extract_texts(
 
 
 def get_device() -> str:
-    device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
+    device = 'cuda' if torch.cuda.is_available() else 'cpu'
     return device
 
 
@@ -133,11 +144,37 @@ def load_detector(*, device: str) -> Predictor:
     return load_vietocr_detector(device=device)
 
 
-def visualize_image_with_boxes(image: np.ndarray, boxes: list[np.ndarray]):
-    vis = visualize_boxes(image, boxes)
-    return vis
+# def normalize_box_for_visualization(box, width, height):
+#     x1, y1 = box[0]
+#     x2, y2 = box[2]
+#     return [
+#         special_round(x1, 0, width),
+#         special_round(y1, 0, height),
+#         special_round(x2, 0, width),
+#         special_round(y2, 0, height),
+#     ]
 
 
+# def visualize_image_with_boxes(image, boxes, color=(0, 255, 0)):
+#     width, height = image.shape[1], image.shape[0]
+#     t = image.copy().astype(np.int32)
+#     for box in boxes:
+#         x1, y1, x2, y2 = normalize_box_for_visualization(box, width, height)
+#         points = [(x1, y1), (x1, y2), (x2, y2), (x2, y1), (x1, y1)]
+#         for i in range(1, len(points)):
+#             t = cv2.line(t, points[i - 1], points[i], color,
+#                      max(2, min(image.shape[:2]) // 200))
+#     return t
+
+
+def flush():
+    gc.collect()
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+        torch.cuda.reset_peak_memory_stats()
+
+
+flush()
 device = get_device()
 
 print('🍞 Load CRAFT')
@@ -150,8 +187,13 @@ print('🍞 Load LayoutLMv3')
 layoutlm3 = load_layoutlm_v3().to(device)
 layoutlm3_processor = load_layoutlm_v3_processor()
 
+print('🍞 Load PhoBERT')
+phobert = load_phobert_model().to(device)
+phobert_tokenizer = load_phobert_tokenizer(device=device)
+
 print('🍞 Start API')
 app = FastAPI(debug=True, title='VietnameseSceneText')
+flush()
 
 origins = ['*']
 
@@ -188,8 +230,8 @@ async def process_image(image: Annotated[UploadFile, File()]):
         print('🚩 process_image: extract text from image')
         data = extract_texts(detector, image, boxes)
         words = [x['text'] for x in data]
-        print('🚩 process_image: tag the texts from image')
-        labels, true_boxes = tag(
+        print('🚩 process_image: layoutlmv3 inference')
+        layoutlmv3_labels, true_boxes = tag(
             image=image,
             words=words, 
             boxes=boxes, 
@@ -197,10 +239,24 @@ async def process_image(image: Annotated[UploadFile, File()]):
             processor=layoutlm3_processor,
             device=device,
         )
+        print('🚩 process_image: phobert inference')
+        phobert_labels = infer_phobert(
+            words, 
+            phobert_tokenizer,
+            phobert,
+            device=device,
+        )
+        print('🚩 process_image: add bounding boxes to image for visualization')
+        # vis = visualize_image_with_boxes(image, boxes).astype(np.uint8)
         print('🚩 process_image: send the data to express server')
         return {
             'success': True,
-            'data': [{ **old, 'tag': tag } for old, tag in zip(data, labels)],
+            'data': [
+                { **old, 'tag': tag, 'pho_tag': pho_tag } 
+                for old, tag, pho_tag in 
+                zip(data, layoutlmv3_labels, phobert_labels)
+            ],
+            # 'visualization': image_to_base64(vis),
         }
     except Exception as e:
         print('🌋 %s' % (str(e)))

@@ -2,42 +2,40 @@ import torch
 from transformers import LayoutLMv3Processor, LayoutLMv3ForTokenClassification
 
 
-id2label={
-    0: 'SELLER',
-    1: 'ADDRESS',
-    2: 'TIMESTAMP',
-    3: 'TOTAL_COST',
-    4: 'TOTAL_TOTAL_COST',
-}
-label2id={
-    'SELLER': 0,
-    'ADDRESS': 1,
-    'TIMESTAMP': 2,
-    'TOTAL_COST': 3,
-    'TOTAL_TOTAL_COST': 4,
-}
+# id2label={
+#     0: 'SELLER',
+#     1: 'ADDRESS',
+#     2: 'TIMESTAMP',
+#     3: 'TOTAL_COST',
+#     4: 'TOTAL_TOTAL_COST',
+# }
+# label2id={
+#     'SELLER': 0,
+#     'ADDRESS': 1,
+#     'TIMESTAMP': 2,
+#     'TOTAL_COST': 3,
+#     'TOTAL_TOTAL_COST': 4,
+# }
 
-labels = list(label2id.keys())
+# labels = list(label2id.keys())
 
-def convert_ner_tags_to_id(ner_tags):
-  return [label2id[ner_tag] for ner_tag in ner_tags]
+# def convert_ner_tags_to_id(ner_tags):
+#   return [label2id[ner_tag] for ner_tag in ner_tags]
 
 
-def load_layoutlm_v3(
-    pretrained_path='/home/tekton/weights/kaggle/working/best_layout_LM3',
-):
+def load_layoutlm_v3(pretrained_path='weights/best_layoutlmv3_20241221'):
     model = LayoutLMv3ForTokenClassification.from_pretrained(
-        pretrained_path,
-        id2label=id2label,
-        label2id=label2id,
+        pretrained_path if pretrained_path else 'microsoft/layoutlmv3-base',
+        # id2label=id2label,
+        # label2id=label2id,
         # torch_dtype=torch.float16,
     )
     return model
 
 
-def load_layoutlm_v3_processor():
+def load_layoutlm_v3_processor(pretrained_path='weights/best_layoutlmv3_20241221'):
     processor = LayoutLMv3Processor.from_pretrained(
-        'microsoft/layoutlmv3-base',
+        pretrained_path if pretrained_path else 'microsoft/layoutlmv3-base',
         apply_ocr=False,
     )
     return processor
@@ -108,7 +106,7 @@ def tag(*, image, words, boxes, model, processor, device):
     logits = outputs.logits
     predictions = torch.argmax(logits, dim=2).squeeze().tolist()
     print('🔰 predictions =', predictions)
-    true_predictions = list(map(id2label.__getitem__, predictions))
+    true_predictions = list(map(model.config.id2label.__getitem__, predictions))
     token_boxes = encoding.bbox.squeeze().tolist()
     print('🔰 len(token_boxes) =', len(token_boxes))
     true_boxes = list(map(
