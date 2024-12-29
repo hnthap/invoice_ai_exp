@@ -93,6 +93,7 @@ def tag(*, image, words, boxes, model, processor, device):
         return_attention_mask=True,
         return_offsets_mapping=True,
         return_tensors='pt',
+        truncation=True,
     )
     encoding.pop('offset_mapping')
     for k, v in encoding.items():
